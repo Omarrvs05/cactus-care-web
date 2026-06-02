@@ -209,7 +209,7 @@
             margin-bottom: 30px;
         }
 
-        .chart-panel, .controls-panel, .events-panel, .prices-panel {
+        .chart-panel, .controls-panel, .events-panel {
             background: white;
             border-radius: 24px;
             padding: 24px;
@@ -300,34 +300,6 @@
             background: #f0fdf4;
             border-radius: 12px;
             text-align: center;
-        }
-
-        /* Tabla de precios */
-        .prices-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.8rem;
-        }
-
-        .prices-table th, .prices-table td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .prices-table th {
-            background: #1a472a;
-            color: white;
-            border-radius: 8px;
-        }
-
-        .free {
-            color: #10b981;
-            font-weight: bold;
-        }
-
-        .paid {
-            color: #f59e0b;
         }
 
         @media (max-width: 768px) {
@@ -433,26 +405,6 @@
                     <button class="btn btn-success" id="btnExportar">📥 Exportar CSV</button>
                 </div>
             </div>
-        </div>
-
-        <!-- Tabla de precios -->
-        <div class="prices-panel">
-            <div class="panel-header">
-                <h3>💰 Comparativa de precios - Servicios Azure</h3>
-            </div>
-            <table class="prices-table">
-                <thead>
-                    <tr><th>Servicio</th><th>Nivel Gratuito</th><th>Nivel Básico</th><th>Costo estimado</th></tr>
-                </thead>
-                <tbody>
-                    <tr><td>Azure IoT Hub</td><td class="free">✅ F1 (8,000 msg/día)</td><td>S1 (400,000 msg/día)</td><td class="free">$0 USD/mes</td></tr>
-                    <tr><td>Azure Functions</td><td class="free">✅ Consumption (1M ejecuciones)</td><td>Premium</td><td class="free">$0 USD/mes</td></tr>
-                    <tr><td>Azure SQL Database</td><td class="free">❌ No disponible en México</td><td class="paid">Basic (5 DTUs)</td><td class="paid">~$5 USD/mes</td></tr>
-                    <tr><td>Azure Static Web Apps</td><td class="free">✅ Gratuito</td><td>Estándar</td><td class="free">$0 USD/mes</td></tr>
-                    <tr><td>Total estimado</td><td colspan="2"></td><td class="paid"><strong>~$5 USD/mes</strong></td></tr>
-                </tbody>
-            </table>
-            <div class="optimal-tag" style="margin-top:15px; text-align:center;">💡 Azure for Students: $100 USD crédito anual</div>
         </div>
 
         <!-- Historial de eventos -->
