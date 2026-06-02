@@ -79,6 +79,41 @@
             animation: blink 1s infinite;
         }
 
+        /* Estado de conexiones */
+        .status-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .status-card {
+            background: #1e293b;
+            padding: 8px 16px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: white;
+        }
+
+        .status-led {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f59e0b;
+            transition: all 0.3s ease;
+        }
+
+        .status-led.connected {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .status-led.disconnected {
+            background: #ef4444;
+        }
+
         @keyframes blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
@@ -174,7 +209,7 @@
             margin-bottom: 30px;
         }
 
-        .chart-panel, .controls-panel, .events-panel {
+        .chart-panel, .controls-panel, .events-panel, .prices-panel {
             background: white;
             border-radius: 24px;
             padding: 24px;
@@ -267,6 +302,34 @@
             text-align: center;
         }
 
+        /* Tabla de precios */
+        .prices-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .prices-table th, .prices-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .prices-table th {
+            background: #1a472a;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .free {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .paid {
+            color: #f59e0b;
+        }
+
         @media (max-width: 768px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
@@ -277,6 +340,9 @@
             }
             .gauge-value {
                 font-size: 1.5rem;
+            }
+            .status-container {
+                justify-content: center;
             }
         }
     </style>
@@ -290,8 +356,18 @@
                 <h1>Cactus Inteligente</h1>
                 <span class="badge">PoC C · Tarjetas + Gráfica en tiempo real</span>
             </div>
-            <div class="live-badge">
-                <span class="live-dot"></span> EN VIVO
+            <div class="status-container">
+                <div class="status-card">
+                    <div class="status-led" id="iotLed"></div>
+                    <span id="iotStatus">IoT Hub: Verificando...</span>
+                </div>
+                <div class="status-card">
+                    <div class="status-led" id="dbLed"></div>
+                    <span id="dbStatus">SQL DB: Verificando...</span>
+                </div>
+                <div class="live-badge">
+                    <span class="live-dot"></span> EN VIVO
+                </div>
             </div>
         </header>
 
@@ -359,6 +435,26 @@
             </div>
         </div>
 
+        <!-- Tabla de precios -->
+        <div class="prices-panel">
+            <div class="panel-header">
+                <h3>💰 Comparativa de precios - Servicios Azure</h3>
+            </div>
+            <table class="prices-table">
+                <thead>
+                    <tr><th>Servicio</th><th>Nivel Gratuito</th><th>Nivel Básico</th><th>Costo estimado</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Azure IoT Hub</td><td class="free">✅ F1 (8,000 msg/día)</td><td>S1 (400,000 msg/día)</td><td class="free">$0 USD/mes</td></tr>
+                    <tr><td>Azure Functions</td><td class="free">✅ Consumption (1M ejecuciones)</td><td>Premium</td><td class="free">$0 USD/mes</td></tr>
+                    <tr><td>Azure SQL Database</td><td class="free">❌ No disponible en México</td><td class="paid">Basic (5 DTUs)</td><td class="paid">~$5 USD/mes</td></tr>
+                    <tr><td>Azure Static Web Apps</td><td class="free">✅ Gratuito</td><td>Estándar</td><td class="free">$0 USD/mes</td></tr>
+                    <tr><td>Total estimado</td><td colspan="2"></td><td class="paid"><strong>~$5 USD/mes</strong></td></tr>
+                </tbody>
+            </table>
+            <div class="optimal-tag" style="margin-top:15px; text-align:center;">💡 Azure for Students: $100 USD crédito anual</div>
+        </div>
+
         <!-- Historial de eventos -->
         <div class="events-panel">
             <div class="panel-header">
@@ -382,6 +478,10 @@
         const nivelValue = document.getElementById('nivelValue');
         const eventsList = document.getElementById('eventsList');
         const lastIrrigationSpan = document.getElementById('lastIrrigation');
+        const iotLed = document.getElementById('iotLed');
+        const iotStatus = document.getElementById('iotStatus');
+        const dbLed = document.getElementById('dbLed');
+        const dbStatus = document.getElementById('dbStatus');
         
         // Variables para los gauges
         let gaugeHumedad, gaugeAgua;
@@ -390,7 +490,7 @@
         let historialTiempos = [];
         
         // Función para crear un gauge (velocímetro)
-        function createGauge(ctx, value, min, max, title, colorStart, colorEnd) {
+        function createGauge(ctx, value, max, colorStart) {
             return new Chart(ctx, {
                 type: 'doughnut',
                 data: {
@@ -479,12 +579,44 @@
             chart.update();
         }
         
+        // Verificar conexión a IoT Hub y Base de Datos
+        async function checkConnections() {
+            try {
+                const response = await fetch(`${API_BASE}/GetLatestReadings`);
+                if (response.ok) {
+                    // IoT Hub está funcionando (la función responde)
+                    iotLed.className = 'status-led connected';
+                    iotStatus.innerHTML = '✅ IoT Hub: CONECTADO';
+                    
+                    const data = await response.json();
+                    if (data && data.length > 0) {
+                        dbLed.className = 'status-led connected';
+                        dbStatus.innerHTML = '✅ SQL DB: CONECTADA';
+                    } else {
+                        dbLed.className = 'status-led connected';
+                        dbStatus.innerHTML = '✅ SQL DB: CONECTADA (sin datos)';
+                    }
+                } else {
+                    throw new Error('Error en respuesta');
+                }
+            } catch (error) {
+                iotLed.className = 'status-led disconnected';
+                iotStatus.innerHTML = '❌ IoT Hub: DESCONECTADO';
+                dbLed.className = 'status-led disconnected';
+                dbStatus.innerHTML = '❌ SQL DB: DESCONECTADA';
+                console.error('Error de conexión:', error);
+            }
+        }
+        
         // Actualizar dashboard completo
         function updateDashboard(data) {
             // Humedad
             if (data.soilMoisture !== undefined) {
                 const humedad = parseFloat(data.soilMoisture).toFixed(1);
                 humedadSpan.textContent = humedad;
+                let color = '#10b981';
+                if (humedad < 30) color = '#ef4444';
+                else if (humedad < 50) color = '#f59e0b';
                 updateGauge(gaugeHumedad, parseFloat(humedad), 100);
                 updateLineChart(parseFloat(humedad), data.timestamp);
                 if (humedad < 30) {
@@ -496,6 +628,9 @@
             if (data.waterLevel_cm !== undefined) {
                 const nivel = parseFloat(data.waterLevel_cm).toFixed(1);
                 nivelValue.textContent = nivel;
+                let color = '#0ea5e9';
+                if (nivel < 10) color = '#ef4444';
+                else if (nivel < 15) color = '#f59e0b';
                 updateGauge(gaugeAgua, parseFloat(nivel), 80);
                 if (nivel < 10) {
                     addEvent(`🚰 ALERTA: Nivel de agua bajo (${nivel}cm)`);
@@ -535,7 +670,7 @@
             }
         }
         
-        // Enviar comando de riego (solo activar)
+        // Enviar comando de riego
         async function sendIrrigationCommand() {
             addEvent(`🔄 Enviando comando para activar riego...`);
             
@@ -575,18 +710,21 @@
         
         // Inicialización
         function init() {
-            // Inicializar gauges
+            // Inicializar gauges tipo Gauss (velocímetro)
             const ctxHumedad = document.getElementById('gaugeHumedad').getContext('2d');
             const ctxAgua = document.getElementById('gaugeAgua').getContext('2d');
             
-            gaugeHumedad = createGauge(ctxHumedad, 0, 0, 100, 'Humedad', '#10b981', '#10b981');
-            gaugeAgua = createGauge(ctxAgua, 0, 0, 80, 'Nivel de agua', '#0ea5e9', '#0ea5e9');
+            gaugeHumedad = createGauge(ctxHumedad, 0, 100, '#10b981');
+            gaugeAgua = createGauge(ctxAgua, 0, 80, '#0ea5e9');
             
             initLineChart();
             addEvent("🌵 Sistema Cactus Care iniciado");
+            checkConnections();
             fetchLatestReadings();
+            
             // Actualizar cada 5 segundos
             setInterval(fetchLatestReadings, 5000);
+            setInterval(checkConnections, 30000);
         }
         
         // Event listeners
